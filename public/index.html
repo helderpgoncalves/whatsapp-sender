@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>WhatsApp Bulk Sender</title>
+  </head>
+  <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="container mx-auto max-w-md p-6 bg-white rounded-lg shadow-md">
+      <h1 class="text-3xl font-bold text-center mb-6 text-green-600">WhatsApp Bulk Sender</h1>
+      <div id="qrCode" class="mb-4 text-center"></div>
+      <textarea
+        id="message"
+        placeholder="Enter your message"
+        class="w-full p-2 mb-4 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+        rows="4"
+      ></textarea>
+      <div id="contactsContainer" class="mb-4">
+        <h2 class="text-lg font-semibold mb-2">Contacts: <span id="contactCount" class="text-sm text-gray-500"></span></h2>
+        <div id="contactList" class="text-sm text-gray-600 max-h-60 overflow-y-auto p-2 bg-gray-50 rounded-md shadow-inner">
+          <!-- Contacts will be dynamically inserted here -->
+        </div>
+      </div>
+      <button
+        onclick="sendMessages()"
+        class="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition duration-300"
+      >
+        Send Message
+      </button>
+      <p id="status" class="mt-4 text-center text-gray-600"></p>
+    </div>
+
+    <script>
+      //country code + number
+      let contacts = ["351911979115", "351939155512"];
+
+      function updateContactList() {
+        const contactList = document.getElementById("contactList");
+        const contactCount = document.getElementById("contactCount");
+        contactList.innerHTML = contacts.map(contact => `
+          <div class="flex items-center justify-between py-1 px-2 hover:bg-gray-200 rounded">
+            <span>${contact}</span>
+          </div>
+        `).join("");
+        contactCount.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
+      }
+
+      function toggleContactList() {
+        const contactList = document.getElementById("contactList");
+        contactList.classList.toggle("hidden");
+      }
+
+      function sendMessages() {
+        const message = document.getElementById("message").value.trim();
+        const status = document.getElementById("status");
+
+        if (!contacts.length || !message) {
+          status.textContent = "Please enter a message. Contacts list is empty.";
+          status.classList.add("text-red-500");
+          return;
+        }
+
+        status.textContent = "Sending messages...";
+        status.classList.remove("text-red-500");
+        status.classList.add("text-green-500");
+
+        fetch("/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ message }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            const successCount = data.results.filter(r => r.status === "success").length;
+            const failCount = data.results.filter(r => r.status === "failed").length;
+            status.textContent = `Messages sent: ${successCount} successful, ${failCount} failed. Check console for details.`;
+            console.log("Results:", data.results);
+          })
+          .catch((error) => {
+            status.textContent = "Error sending messages. Check console for details.";
+            status.classList.remove("text-green-500");
+            status.classList.add("text-red-500");
+            console.error("Error:", error);
+          });
+      }
+
+      function checkStatus() {
+        fetch("/status")
+          .then((response) => response.json())
+          .then((data) => {
+            const qrCodeContainer = document.getElementById("qrCode");
+            if (data.ready) {
+              qrCodeContainer.innerHTML = "<p class='text-green-500'>WhatsApp client is ready</p>";
+            } else if (data.qrCode) {
+              qrCodeContainer.innerHTML = `<img src="${data.qrCode}" alt="QR Code" class="mx-auto" />`;
+            } else {
+              qrCodeContainer.innerHTML = "<p class='text-yellow-500'>Waiting for QR code...</p>";
+            }
+          })
+          .catch((error) => {
+            console.error("Error checking status:", error);
+          });
+      }
+
+      function fetchContacts() {
+        fetch("/contacts")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            contacts = data.map(contact => contact.replace('+', ''));
+            updateContactList();
+          })
+          .catch((error) => {
+            console.error("Error fetching contacts:", error);
+          });
+      }
+      // Initial setup
+      fetchContacts();
+      checkStatus();
+
+      // Check status every 5 seconds
+      setInterval(checkStatus, 5000);
+    </script>
+  </body>
+</html>
