@@ -223,6 +223,12 @@ app.post("/upload-contacts", upload.single("contactsFile"), (req, res) => {
 
   try {
     const fileContent = fs.readFileSync(req.file.path, "utf8");
+    
+    // Check if the file content is HTML (which might indicate a server error)
+    if (fileContent.trim().toLowerCase().startsWith("<!doctype html")) {
+      throw new Error("Received HTML content instead of expected file format");
+    }
+
     const newContacts = fileContent.split("\n").filter(Boolean);
 
     const formattedContacts = newContacts
@@ -243,6 +249,6 @@ app.post("/upload-contacts", upload.single("contactsFile"), (req, res) => {
     });
   } catch (error) {
     console.error("Error processing contacts file:", error);
-    res.status(500).json({ error: "Failed to process contacts file" });
+    res.status(500).json({ error: "Failed to process contacts file: " + error.message });
   }
 });
