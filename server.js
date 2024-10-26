@@ -7,7 +7,7 @@ const fs = require("fs");
 const multer = require("multer");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 let contacts = fs
   .readFileSync("contacts.txt", "utf8")
   .split("\n")

@@ -43,4 +43,5 @@ yarn.lock
 # Optional: Uncomment if you're using Jest for testing
 # coverage/
 
-uploads
+# Uploads
+uploads/*
