@@ -38,7 +38,7 @@ Antes de executar este projeto, certifique-se de que tem o seguinte software ins
 
 2. Abra o seu navegador e aceda a:
    ```
-   http://localhost:3002
+   http://localhost:3000
    ```
 
 ## Utilização
