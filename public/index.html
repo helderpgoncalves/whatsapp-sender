@@ -6,23 +6,47 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title>WhatsApp Bulk Sender</title>
     <link rel="icon" href="https://bitsapiens.io/wp-content/uploads/2022/08/cropped-B512x512-150x150.png" type="image/x-icon">
+    <!-- Add CKEditor 5 CDN -->
+    <script src="https://cdn.ckeditor.com/ckeditor5/37.1.0/classic/ckeditor.js"></script>
+    <!-- description -->
+     
   </head>
   <body class="bg-gray-100 min-h-screen flex items-center justify-center">
     <div class="container mx-auto max-w-md p-6 bg-white rounded-lg shadow-md">
       <h1 class="text-3xl font-bold text-center mb-6 text-green-600">WhatsApp Bulk Sender</h1>
       <div id="qrCode" class="mb-4 text-center"></div>
-      <textarea
-        id="message"
-        placeholder="Enter your message"
+      <!-- Replace textarea with a div for CKEditor -->
+      <div id="editor" class="mb-4"></div>
+      <input
+        type="file"
+        id="imageUpload"
+        accept="image/*"
         class="w-full p-2 mb-4 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-        rows="4"
-      ></textarea>
+      />
       <div id="contactsContainer" class="mb-4">
         <h2 class="text-lg font-semibold mb-2">Contacts: <span id="contactCount" class="text-sm text-gray-500"></span></h2>
+        <input
+          type="text"
+          id="searchContacts"
+          placeholder="Search contacts..."
+          class="w-full p-2 mb-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
         <div id="contactList" class="text-sm text-gray-600 max-h-60 overflow-y-auto p-2 bg-gray-50 rounded-md shadow-inner">
           <!-- Contacts will be dynamically inserted here -->
         </div>
       </div>
+      <input
+        type="text"
+        id="newContact"
+        placeholder="Add new contact (e.g., 351123456789)"
+        class="w-full p-2 mb-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+      />
+      <button
+        onclick="addContact()"
+        class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-300 mb-4"
+      >
+        Add Contact
+      </button>
       <button
         onclick="sendMessages()"
         class="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition duration-300"
@@ -33,31 +57,88 @@
     </div>
 
     <script>
-      //country code + number
-      let contacts = ["351911979115", "351939155512"];
+      let contacts = [];
+      let editor;
 
-      function updateContactList() {
+      // Initialize CKEditor
+      ClassicEditor
+        .create(document.querySelector('#editor'))
+        .then(newEditor => {
+          editor = newEditor;
+        })
+        .catch(error => {
+          console.error(error);
+        });
+
+      function updateContactList(searchTerm = '') {
         const contactList = document.getElementById("contactList");
         const contactCount = document.getElementById("contactCount");
-        contactList.innerHTML = contacts.map(contact => `
-          <div class="flex items-center justify-between py-1 px-2 hover:bg-gray-200 rounded">
+        const filteredContacts = contacts.filter(contact => 
+          contact.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        contactList.innerHTML = filteredContacts.map(contact => `
+          <div class="flex items-center justify-between py-1 px-2 hover:bg-gray-200 rounded transition duration-200">
             <span>${contact}</span>
+            <button onclick="deleteContact('${contact}')" class="text-red-500 hover:text-red-700 transition duration-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+            </button>
           </div>
         `).join("");
         contactCount.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
       }
 
-      function toggleContactList() {
-        const contactList = document.getElementById("contactList");
-        contactList.classList.toggle("hidden");
+      function deleteContact(contact) {
+        fetch("/delete-contact", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ contact }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("Contact deleted:", data);
+            fetchContacts();
+          })
+          .catch((error) => {
+            console.error("Error deleting contact:", error);
+          });
+      }
+
+      function addContact() {
+        const newContactInput = document.getElementById("newContact");
+        const newContact = newContactInput.value.trim();
+        
+        if (newContact) {
+          fetch("/update-contacts", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ contacts: [newContact] }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log("Contact added:", data);
+              newContactInput.value = "";
+              fetchContacts();
+            })
+            .catch((error) => {
+              console.error("Error adding contact:", error);
+            });
+        }
       }
 
       function sendMessages() {
-        const message = document.getElementById("message").value.trim();
+        const message = editor.getData().trim();
+        const imageUpload = document.getElementById("imageUpload");
         const status = document.getElementById("status");
 
         if (!contacts.length || !message) {
-          status.textContent = "Please enter a message. Contacts list is empty.";
+          status.textContent = "Please enter a message and ensure the contacts list is not empty.";
           status.classList.add("text-red-500");
           return;
         }
@@ -66,12 +147,15 @@
         status.classList.remove("text-red-500");
         status.classList.add("text-green-500");
 
+        const formData = new FormData();
+        formData.append("message", message);
+        if (imageUpload.files.length > 0) {
+          formData.append("image", imageUpload.files[0]);
+        }
+
         fetch("/send", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ message }),
+          body: formData,
         })
           .then((response) => response.json())
           .then((data) => {
@@ -122,12 +206,18 @@
             console.error("Error fetching contacts:", error);
           });
       }
+
       // Initial setup
       fetchContacts();
       checkStatus();
 
       // Check status every 5 seconds
       setInterval(checkStatus, 5000);
+
+      // Add event listener for search input
+      document.getElementById("searchContacts").addEventListener("input", function(e) {
+        updateContactList(e.target.value);
+      });
     </script>
   </body>
 </html>
