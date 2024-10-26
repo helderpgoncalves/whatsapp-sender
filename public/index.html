@@ -312,14 +312,26 @@
           method: 'POST',
           body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.text();
+        })
+        .then(text => {
+          try {
+            return JSON.parse(text);
+          } catch (e) {
+            throw new Error('Invalid JSON response: ' + text);
+          }
+        })
         .then(data => {
           alert(data.message);
           fetchContacts(); // Refresh the contacts list
         })
         .catch(error => {
           console.error('Error uploading contacts:', error);
-          alert('Error uploading contacts. Please try again.');
+          alert('Error uploading contacts: ' + error.message);
         });
       }
 
