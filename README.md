@@ -1,6 +1,6 @@
-# Gestor de Contactos
+# WhatsApp Sender
 
-Este projeto é um simples gestor de contactos que utiliza Node.js para o backend e HTML/JavaScript para o frontend.
+Este projeto é um simples gestor de contactos e enviador de mensagens WhatsApp que utiliza Node.js para o backend e HTML/JavaScript para o frontend.
 
 ## Requisitos
 
