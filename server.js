@@ -5,7 +5,6 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const sanitizeHtml = require("sanitize-html");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -227,7 +226,6 @@ app.post("/upload-contacts", upload.single("contactsFile"), (req, res) => {
     const newContacts = fileContent.split("\n").filter(Boolean);
 
     const formattedContacts = newContacts
-      .filter((contact) => /^\d+$/.test(contact.trim())) // Only allow numbers
       .map((contact) => formatPhoneNumber(contact.trim()));
 
     // Merge new contacts with existing ones and remove duplicates
