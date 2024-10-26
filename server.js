@@ -6,8 +6,8 @@ const path = require("path");
 const fs = require("fs");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const contacts = JSON.parse(fs.readFileSync("contacts.json", "utf8"));
+const PORT = process.env.PORT || 3001;
+const contacts = fs.readFileSync("contacts.txt", "utf8").split("\n");
 
 app.use(express.json());
 app.use(cors());
