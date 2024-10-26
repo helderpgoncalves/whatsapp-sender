@@ -5,33 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
     <title>WhatsApp Bulk Sender</title>
-    <link rel="icon" href="https://bitsapiens.io/wp-content/uploads/2022/08/cropped-B512x512-150x150.png" type="image/x-icon">
+    <link
+      rel="icon"
+      href="https://bitsapiens.io/wp-content/uploads/2022/08/cropped-B512x512-150x150.png"
+      type="image/x-icon"
+    />
     <!-- Add CKEditor 5 CDN -->
-    <script src="https://cdn.ckeditor.com/ckeditor5/37.1.0/classic/ckeditor.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/38.1.0/classic/ckeditor.js"></script>
     <!-- description -->
-     
+    <meta
+      name="description"
+      content="Send WhatsApp messages to multiple contacts at once"
+    />
   </head>
   <body class="bg-gray-100 min-h-screen flex items-center justify-center">
     <div class="container mx-auto max-w-md p-6 bg-white rounded-lg shadow-md">
-      <h1 class="text-3xl font-bold text-center mb-6 text-green-600">WhatsApp Bulk Sender</h1>
+      <h1 class="text-3xl font-bold text-center mb-6 text-green-600">
+        WhatsApp Bulk Sender
+      </h1>
       <div id="qrCode" class="mb-4 text-center"></div>
       <!-- Replace textarea with a div for CKEditor -->
       <div id="editor" class="mb-4"></div>
-      <input
-        type="file"
-        id="imageUpload"
-        accept="image/*"
-        class="w-full p-2 mb-4 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-      />
+      <div class="mb-4">
+        <label for="imageUpload" class="block text-sm font-medium text-gray-700 mb-2">Upload Image (optional)</label>
+        <input
+          type="file"
+          id="imageUpload"
+          accept="image/*"
+          class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+      </div>
       <div id="contactsContainer" class="mb-4">
-        <h2 class="text-lg font-semibold mb-2">Contacts: <span id="contactCount" class="text-sm text-gray-500"></span></h2>
+        <h2 class="text-lg font-semibold mb-2">
+          Contacts:
+          <span id="contactCount" class="text-sm text-gray-500"></span>
+        </h2>
         <input
           type="text"
           id="searchContacts"
           placeholder="Search contacts..."
           class="w-full p-2 mb-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
         />
-        <div id="contactList" class="text-sm text-gray-600 max-h-60 overflow-y-auto p-2 bg-gray-50 rounded-md shadow-inner">
+        <div
+          id="contactList"
+          class="text-sm text-gray-600 max-h-60 overflow-y-auto p-2 bg-gray-50 rounded-md shadow-inner"
+        >
           <!-- Contacts will be dynamically inserted here -->
         </div>
       </div>
@@ -54,30 +72,90 @@
         Send Message
       </button>
       <p id="status" class="mt-4 text-center text-gray-600"></p>
+      <!-- Add a hidden textarea to store the cleaned message -->
+      <textarea id="cleanedMessage" style="display: none;"></textarea>
+      <div class="mb-4">
+        <label for="contactsFile" class="block text-sm font-medium text-gray-700 mb-2">Upload Contacts File</label>
+        <input
+          type="file"
+          id="contactsFile"
+          accept=".txt"
+          class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+      </div>
+      <button
+        onclick="uploadContacts()"
+        class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-300 mb-4"
+      >
+        Upload Contacts
+      </button>
     </div>
 
     <script>
       let contacts = [];
       let editor;
 
-      // Initialize CKEditor
-      ClassicEditor
-        .create(document.querySelector('#editor'))
-        .then(newEditor => {
+      // Custom CKEditor configuration
+      const editorConfig = {
+        toolbar: ['bold', 'italic', 'link', '|', 'undo', 'redo'],
+        removePlugins: ['Heading', 'List'],
+        format_tags: '',
+      };
+
+      // Initialize CKEditor with custom configuration
+      ClassicEditor.create(document.querySelector("#editor"), editorConfig)
+        .then((newEditor) => {
           editor = newEditor;
+
+          // Add event listener for editor changes
+          editor.model.document.on('change:data', () => {
+            updateCleanedMessage();
+          });
         })
-        .catch(error => {
+        .catch((error) => {
           console.error(error);
         });
 
-      function updateContactList(searchTerm = '') {
+      // Function to clean and update the message
+      function updateCleanedMessage() {
+        const editorData = editor.getData();
+        const cleanedMessage = cleanMessage(editorData);
+        document.getElementById('cleanedMessage').value = cleanedMessage;
+      }
+
+      // Function to clean the message
+      function cleanMessage(message) {
+        // Remove all HTML tags except <b>, <i>, and <a>
+        message = message.replace(/<(?!\/?(?:b|i|a)\b)[^>]+>/gi, '');
+        
+        // Replace <b> with *
+        message = message.replace(/<\/?b>/g, '*');
+        
+        // Replace <i> with _
+        message = message.replace(/<\/?i>/g, '_');
+        
+        // Convert <a> tags to plain text links
+        message = message.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/g, '$2 ($1)');
+        
+        // Remove any remaining HTML entities
+        message = message.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        
+        // Trim whitespace and remove extra line breaks
+        message = message.trim().replace(/\n{3,}/g, '\n\n');
+        
+        return message;
+      }
+
+      function updateContactList(searchTerm = "") {
         const contactList = document.getElementById("contactList");
         const contactCount = document.getElementById("contactCount");
-        const filteredContacts = contacts.filter(contact => 
+        const filteredContacts = contacts.filter((contact) =>
           contact.toLowerCase().includes(searchTerm.toLowerCase())
         );
-        
-        contactList.innerHTML = filteredContacts.map(contact => `
+
+        contactList.innerHTML = filteredContacts
+          .map(
+            (contact) => `
           <div class="flex items-center justify-between py-1 px-2 hover:bg-gray-200 rounded transition duration-200">
             <span>${contact}</span>
             <button onclick="deleteContact('${contact}')" class="text-red-500 hover:text-red-700 transition duration-200">
@@ -86,8 +164,12 @@
               </svg>
             </button>
           </div>
-        `).join("");
-        contactCount.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
+        `
+          )
+          .join("");
+        contactCount.textContent = `${contacts.length} contact${
+          contacts.length !== 1 ? "s" : ""
+        }`;
       }
 
       function deleteContact(contact) {
@@ -111,7 +193,7 @@
       function addContact() {
         const newContactInput = document.getElementById("newContact");
         const newContact = newContactInput.value.trim();
-        
+
         if (newContact) {
           fetch("/update-contacts", {
             method: "POST",
@@ -133,12 +215,12 @@
       }
 
       function sendMessages() {
-        const message = editor.getData().trim();
+        const message = document.getElementById('cleanedMessage').value.trim();
         const imageUpload = document.getElementById("imageUpload");
         const status = document.getElementById("status");
 
-        if (!contacts.length || !message) {
-          status.textContent = "Please enter a message and ensure the contacts list is not empty.";
+        if (!message && !imageUpload.files.length) {
+          status.textContent = "Please enter a message or select an image, and ensure the contacts list is not empty.";
           status.classList.add("text-red-500");
           return;
         }
@@ -148,7 +230,9 @@
         status.classList.add("text-green-500");
 
         const formData = new FormData();
-        formData.append("message", message);
+        if (message) {
+          formData.append("message", message);
+        }
         if (imageUpload.files.length > 0) {
           formData.append("image", imageUpload.files[0]);
         }
@@ -159,8 +243,12 @@
         })
           .then((response) => response.json())
           .then((data) => {
-            const successCount = data.results.filter(r => r.status === "success").length;
-            const failCount = data.results.filter(r => r.status === "failed").length;
+            const successCount = data.results.filter(
+              (r) => r.status === "success"
+            ).length;
+            const failCount = data.results.filter(
+              (r) => r.status === "failed"
+            ).length;
             status.textContent = `Messages sent: ${successCount} successful, ${failCount} failed. Check console for details.`;
             console.log("Results:", data.results);
           })
@@ -178,11 +266,13 @@
           .then((data) => {
             const qrCodeContainer = document.getElementById("qrCode");
             if (data.ready) {
-              qrCodeContainer.innerHTML = "<p class='text-green-500'>WhatsApp client is ready</p>";
+              qrCodeContainer.innerHTML =
+                "<p class='text-green-500'>WhatsApp client is ready</p>";
             } else if (data.qrCode) {
               qrCodeContainer.innerHTML = `<img src="${data.qrCode}" alt="QR Code" class="mx-auto" />`;
             } else {
-              qrCodeContainer.innerHTML = "<p class='text-yellow-500'>Waiting for QR code...</p>";
+              qrCodeContainer.innerHTML =
+                "<p class='text-yellow-500'>Waiting for QR code...</p>";
             }
           })
           .catch((error) => {
@@ -199,12 +289,38 @@
             return response.json();
           })
           .then((data) => {
-            contacts = data.map(contact => contact.replace('+', ''));
+            contacts = data.map((contact) => contact.replace("+", ""));
             updateContactList();
           })
           .catch((error) => {
             console.error("Error fetching contacts:", error);
           });
+      }
+
+      function uploadContacts() {
+        const fileInput = document.getElementById('contactsFile');
+        const file = fileInput.files[0];
+        if (!file) {
+          alert('Please select a file to upload.');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('contactsFile', file);
+
+        fetch('/upload-contacts', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message);
+          fetchContacts(); // Refresh the contacts list
+        })
+        .catch(error => {
+          console.error('Error uploading contacts:', error);
+          alert('Error uploading contacts. Please try again.');
+        });
       }
 
       // Initial setup
@@ -215,9 +331,11 @@
       setInterval(checkStatus, 5000);
 
       // Add event listener for search input
-      document.getElementById("searchContacts").addEventListener("input", function(e) {
-        updateContactList(e.target.value);
-      });
+      document
+        .getElementById("searchContacts")
+        .addEventListener("input", function (e) {
+          updateContactList(e.target.value);
+        });
     </script>
   </body>
 </html>
