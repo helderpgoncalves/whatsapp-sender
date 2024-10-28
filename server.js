@@ -49,8 +49,7 @@ const getFormattedContacts = async () => {
   const contacts = await getContacts();
 
   return contacts.map((phoneNumber) => {
-    const digits = phoneNumber.replace(/\D/g, "");
-    return digits.startsWith("351") ? digits : `351${digits}`;
+    return digits = phoneNumber.replace(/\D/g, "");
   });
 };
 
